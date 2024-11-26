@@ -21,6 +21,7 @@ import { BaseSupabaseService } from "./BaseSupabaseService.js";
 import { jsonArrayFrom } from "kysely/helpers/postgres";
 import { GetBlueprintArgs } from "../graphql/schemas/args/blueprintArgs.js";
 import { sql } from "kysely";
+import { GetSignatureRequestArgs } from "../graphql/schemas/args/signatureRequestArgs.js";
 
 @singleton()
 export class SupabaseDataService extends BaseSupabaseService<KyselyDataDatabase> {
@@ -668,13 +669,20 @@ export class SupabaseDataService extends BaseSupabaseService<KyselyDataDatabase>
   }
 
   async addSignatureRequest(
-    request: DataDatabase["public"]["Tables"]["signature_requests"]["Insert"]
+    request: DataDatabase["public"]["Tables"]["signature_requests"]["Insert"],
   ) {
     return this.db
       .insertInto("signature_requests")
       .values(request)
       .returning(["safe_address", "message_hash"])
       .execute();
+  }
+
+  getSignatureRequests(args: GetSignatureRequestArgs) {
+    return {
+      data: this.handleGetData("signature_requests", args),
+      count: this.handleGetCount("signature_requests", args),
+    };
   }
 
   getDataQuery<
@@ -689,6 +697,8 @@ export class SupabaseDataService extends BaseSupabaseService<KyselyDataDatabase>
       case "blueprints_with_admins":
       case "blueprints":
         return this.db.selectFrom("blueprints_with_admins").selectAll();
+      case "signature_requests":
+        return this.db.selectFrom("signature_requests").selectAll();
       default:
         throw new Error(`Table ${tableName.toString()} not found`);
     }
@@ -713,6 +723,12 @@ export class SupabaseDataService extends BaseSupabaseService<KyselyDataDatabase>
       case "blueprints":
         return this.db
           .selectFrom("blueprints_with_admins")
+          .select((expressionBuilder) => {
+            return expressionBuilder.fn.countAll().as("count");
+          });
+      case "signature_requests":
+        return this.db
+          .selectFrom("signature_requests")
           .select((expressionBuilder) => {
             return expressionBuilder.fn.countAll().as("count");
           });
